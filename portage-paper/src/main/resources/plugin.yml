@@ -1,0 +1,16 @@
+name: Portage
+version: '${version}'
+main: dev.lucasfrederico.portage.PortagePlugin
+api-version: '1.21'
+folia-supported: true
+description: Carries player data between the servers of a network.
+author: Lucas Frederico
+libraries:
+  - redis.clients:jedis:5.2.0
+  - com.zaxxer:HikariCP:6.2.1
+  - org.mariadb.jdbc:mariadb-java-client:3.5.2
+commands:
+  portage:
+    description: Move or snapshot a player.
+    usage: /<command> send <player> <server> | save <player>
+    permission: portage.admin

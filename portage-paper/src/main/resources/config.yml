@@ -1,0 +1,23 @@
+# The name this server signs its checkouts and snapshots with. Unique per server.
+server-id: "server-1"
+
+redis:
+  host: "127.0.0.1"
+  port: 6379
+  password: ""
+
+database:
+  jdbc-url: "jdbc:mariadb://127.0.0.1:3306/portage"
+  user: "root"
+  password: ""
+
+handoff:
+  # How long a joining player waits for the previous server to hand off
+  # before Portage falls back to the database. Milliseconds.
+  wait-ms: 3000
+  # How often the waiting player polls the checkout. Milliseconds.
+  poll-ms: 50
+  # How long a silent server keeps a checkout before it is considered gone.
+  checkout-ttl-ms: 30000
+  # How long a handed-off snapshot waits in Redis to be claimed.
+  data-ttl-ms: 300000
