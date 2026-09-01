@@ -1,27 +1,26 @@
 package dev.lucasfrederico.portage.store;
 
+import dev.lucasfrederico.portage.data.PlayerSnapshot;
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The durable lane: an append-only history of snapshots per player.
+ * The durable lane: a bounded history of snapshots per player.
  */
 public interface SnapshotArchive {
 
     /**
-     * Stores one snapshot.
+     * Stores one snapshot, pruning the player's oldest rows past the
+     * configured retention.
      *
-     * @param player  the player
-     * @param server  the server that took it
-     * @param cause   why it was taken: {@code quit}, {@code stop}, {@code manual}
-     * @param format  the snapshot format version
-     * @param takenAt epoch milliseconds when it was taken
-     * @param payload the encoded snapshot
+     * @param snapshot the snapshot, for the row's metadata
+     * @param cause    why it was taken
+     * @param payload  the encoded snapshot
      * @throws SQLException when the write fails
      */
-    void save(UUID player, String server, String cause, int format, long takenAt, byte[] payload)
-            throws SQLException;
+    void save(PlayerSnapshot snapshot, SnapshotCause cause, byte[] payload) throws SQLException;
 
     /**
      * The most recent snapshot of a player.

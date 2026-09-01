@@ -1,6 +1,7 @@
 package dev.lucasfrederico.portage.sync;
 
 import dev.lucasfrederico.portage.data.PlayerSnapshot;
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.data.SnapshotCodec;
 import dev.lucasfrederico.portage.data.Snapshots;
 import dev.lucasfrederico.portage.store.CheckoutLane;
@@ -111,13 +112,13 @@ public final class Handoff {
      * @param player the player who is leaving, on their own thread
      * @param cause  why the snapshot is taken, for the archive row
      */
-    public void onQuit(Player player, String cause) {
+    public void onQuit(Player player, SnapshotCause cause) {
         if (protocol.abandon(player.getUniqueId())) {
             return;
         }
         var snapshot = Snapshots.capture(player, server);
         var payload = codec.encode(snapshot);
-        if ("stop".equals(cause)) {
+        if (cause == SnapshotCause.STOP) {
             protocol.handOff(snapshot, payload, cause);
             return;
         }
@@ -132,7 +133,7 @@ public final class Handoff {
      * @param player the player, on their own thread
      * @param cause  the archive row's cause
      */
-    public void saveInPlace(Player player, String cause) {
+    public void saveInPlace(Player player, SnapshotCause cause) {
         var snapshot = Snapshots.capture(player, server);
         var payload = codec.encode(snapshot);
         plugin.getServer().getAsyncScheduler().runNow(plugin,

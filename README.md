@@ -55,22 +55,36 @@ Redis, two keys per player:
 | `portage:checkout:<uuid>` | id of the server that owns the player | `checkout-ttl-ms` |
 | `portage:data:<uuid>` | the last snapshot handed off | `data-ttl-ms` |
 
-MariaDB or MySQL, one table created on first start:
+MariaDB or MySQL, three tables created on first start:
 
 ```sql
+CREATE TABLE portage_players (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    uuid       BINARY(16)   NOT NULL UNIQUE,
+    name       VARCHAR(16)  NOT NULL,
+    first_seen TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    last_seen  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+);
+CREATE TABLE portage_servers (
+    id   SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(64) NOT NULL UNIQUE
+);
 CREATE TABLE portage_snapshots (
-    id       BIGINT AUTO_INCREMENT PRIMARY KEY,
-    player   CHAR(36)     NOT NULL,
-    server   VARCHAR(64)  NOT NULL,
-    cause    VARCHAR(16)  NOT NULL,   -- quit, stop, manual
-    format   INT          NOT NULL,
-    taken_at TIMESTAMP(3) NOT NULL,
-    payload  MEDIUMBLOB   NOT NULL,
-    INDEX by_player (player, id)
+    player_id INT UNSIGNED      NOT NULL,
+    id        BIGINT UNSIGNED   NOT NULL AUTO_INCREMENT,
+    server_id SMALLINT UNSIGNED NOT NULL,
+    cause     TINYINT UNSIGNED  NOT NULL,   -- 1 quit, 2 stop, 3 manual
+    format    SMALLINT UNSIGNED NOT NULL,
+    taken_at  TIMESTAMP(3)      NOT NULL,
+    payload   MEDIUMBLOB        NOT NULL,
+    PRIMARY KEY (player_id, id),
+    KEY by_id (id)
 );
 ```
 
-Every quit, every server stop and every manual save appends a row, so the table doubles as a rollback history. The payload is JSON with item bytes as base64, readable straight out of `redis-cli` or a `SELECT` while you debug. Items use Paper's own `ItemStack.serializeItemsAsBytes`, which the game upgrades across versions by itself; a `format` field versions everything else.
+A snapshot row spends 6 bytes on identity (a 4-byte player id and a 2-byte server id) instead of a 36-character UUID and a server name, which matters once the table counts its rows in billions. The primary key clusters each player's rows together, so `latest` and any future rollback read one page. Ids are resolved once per player and cached in memory; the hot path is one `INSERT` and one `DELETE`.
+
+Every quit, every server stop and every manual save appends a row; `archive.keep-per-player` (20 by default, `0` for unlimited) prunes the player's oldest rows on each save, so the table doubles as a bounded rollback history. The payload is JSON with item bytes as base64, readable straight out of `redis-cli` or a `SELECT` while you debug. Items use Paper's own `ItemStack.serializeItemsAsBytes`, which the game upgrades across versions by itself; a `format` field versions everything else.
 
 ## Installing
 
@@ -88,6 +102,9 @@ database:
   jdbc-url: "jdbc:mariadb://127.0.0.1:3306/portage"
   user: "root"
   password: ""
+
+archive:
+  keep-per-player: 20       # snapshots kept per player; 0 keeps everything
 
 handoff:
   wait-ms: 3000             # how long a join waits for the previous server

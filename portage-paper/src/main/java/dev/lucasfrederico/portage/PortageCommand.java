@@ -1,5 +1,6 @@
 package dev.lucasfrederico.portage;
 
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.sync.Handoff;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -57,7 +58,7 @@ public final class PortageCommand implements CommandExecutor {
                 sender.sendMessage(Component.text("Player not found.", NamedTextColor.RED));
                 return true;
             }
-            target.getScheduler().run(plugin, task -> handoff.saveInPlace(target, "manual"), null);
+            target.getScheduler().run(plugin, task -> handoff.saveInPlace(target, SnapshotCause.MANUAL), null);
             sender.sendMessage(Component.text("Snapshot of " + target.getName() + " requested.",
                     NamedTextColor.GREEN));
             return true;

@@ -17,7 +17,7 @@ class SnapshotCodecTest {
     @Test
     void roundTripsEveryField() {
         var original = new PlayerSnapshot(PlayerSnapshot.FORMAT,
-                UUID.fromString("edc09bca-dfe8-3b5c-a512-adbfc7b28c20"), "lobby-1", 1756743114432L,
+                UUID.fromString("edc09bca-dfe8-3b5c-a512-adbfc7b28c20"), "Steve", "lobby-1", 1756743114432L,
                 new byte[] {1, 2, 3, (byte) 0xFF}, new byte[] {9}, 4, 17.5, 18, 3.25f, 21, 0.4f,
                 "ADVENTURE",
                 List.of(new PlayerSnapshot.Effect("minecraft:night_vision", 600, 0, false, true, true),
@@ -27,6 +27,7 @@ class SnapshotCodecTest {
 
         assertEquals(original.format(), back.format());
         assertEquals(original.player(), back.player());
+        assertEquals(original.name(), back.name());
         assertEquals(original.server(), back.server());
         assertEquals(original.takenAt(), back.takenAt());
         assertArrayEquals(original.inventory(), back.inventory());
@@ -43,7 +44,7 @@ class SnapshotCodecTest {
 
     @Test
     void roundTripsAnEmptyPlayer() {
-        var original = new PlayerSnapshot(PlayerSnapshot.FORMAT, UUID.randomUUID(), "a", 0L,
+        var original = new PlayerSnapshot(PlayerSnapshot.FORMAT, UUID.randomUUID(), "Steve", "a", 0L,
                 new byte[0], new byte[0], 0, 20.0, 20, 5f, 0, 0f, "SURVIVAL", List.of());
 
         var back = codec.decode(codec.encode(original));
@@ -54,7 +55,7 @@ class SnapshotCodecTest {
 
     @Test
     void payloadStaysReadableJson() {
-        var snapshot = new PlayerSnapshot(PlayerSnapshot.FORMAT, UUID.randomUUID(), "a", 0L,
+        var snapshot = new PlayerSnapshot(PlayerSnapshot.FORMAT, UUID.randomUUID(), "Steve", "a", 0L,
                 new byte[0], new byte[0], 0, 20.0, 20, 5f, 0, 0f, "SURVIVAL", List.of());
 
         var json = new String(codec.encode(snapshot), StandardCharsets.UTF_8);

@@ -1,5 +1,6 @@
 package dev.lucasfrederico.portage.sync;
 
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -42,7 +43,7 @@ public final class HandoffListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     void onQuit(PlayerQuitEvent event) {
-        handoff.onQuit(event.getPlayer(), "quit");
+        handoff.onQuit(event.getPlayer(), SnapshotCause.QUIT);
     }
 
     @EventHandler

@@ -15,3 +15,6 @@ handoff:
   poll-ms: 50
   checkout-ttl-ms: 30000
   data-ttl-ms: 300000
+
+archive:
+  keep-per-player: 20

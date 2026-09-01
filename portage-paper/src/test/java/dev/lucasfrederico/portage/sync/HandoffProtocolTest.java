@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.lucasfrederico.portage.data.PlayerSnapshot;
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.sync.HandoffProtocol.Acquired;
 import dev.lucasfrederico.portage.sync.HandoffProtocol.Retry;
 import dev.lucasfrederico.portage.sync.HandoffProtocol.TakeOver;
@@ -51,7 +52,7 @@ class HandoffProtocolTest {
 
     @Test
     void fallsBackToTheArchiveWhenNothingWasHandedOff() throws Exception {
-        archive.save(player, "a", "quit", 1, 10, FROM_ARCHIVE);
+        archive.save(snapshot(), SnapshotCause.QUIT, FROM_ARCHIVE);
 
         var acquired = assertInstanceOf(Acquired.class, protocol.tryAcquire(player, 0, 0));
 
@@ -67,7 +68,7 @@ class HandoffProtocolTest {
 
     @Test
     void prefersTheLaneOverTheArchive() throws Exception {
-        archive.save(player, "a", "quit", 1, 10, FROM_ARCHIVE);
+        archive.save(snapshot(), SnapshotCause.QUIT, FROM_ARCHIVE);
         lane.snapshots.put(player, FROM_LANE);
 
         var acquired = assertInstanceOf(Acquired.class, protocol.tryAcquire(player, 0, 0));
@@ -86,7 +87,7 @@ class HandoffProtocolTest {
     @Test
     void takesOverOnceTheWaitRunsOut() throws Exception {
         lane.checkouts.put(player, "a");
-        archive.save(player, "a", "manual", 1, 10, FROM_ARCHIVE);
+        archive.save(snapshot(), SnapshotCause.MANUAL, FROM_ARCHIVE);
 
         var step = protocol.tryAcquire(player, 0, WAIT_MS);
 
@@ -105,14 +106,14 @@ class HandoffProtocolTest {
         var snapshot = snapshot();
         var payload = bytes("state");
 
-        protocol.handOff(snapshot, payload, "quit");
+        protocol.handOff(snapshot, payload, SnapshotCause.QUIT);
 
         assertArrayEquals(payload, lane.snapshots.get(player));
         assertTrue(lane.checkouts.isEmpty(), "the checkout is released for the next server");
         assertEquals(1, archive.rows.size());
         var row = archive.rows.getFirst();
         assertEquals("b", row.server());
-        assertEquals("quit", row.cause());
+        assertEquals(SnapshotCause.QUIT, row.cause());
         assertEquals(snapshot.takenAt(), row.takenAt());
         assertArrayEquals(payload, row.payload());
     }
@@ -122,7 +123,7 @@ class HandoffProtocolTest {
         lane.checkouts.put(player, "b");
         archive.failing = true;
 
-        protocol.handOff(snapshot(), bytes("state"), "quit");
+        protocol.handOff(snapshot(), bytes("state"), SnapshotCause.QUIT);
 
         assertTrue(lane.checkouts.isEmpty());
         assertTrue(lane.snapshots.containsKey(player), "the next server can still take over");
@@ -154,12 +155,12 @@ class HandoffProtocolTest {
     void keepingAPlayerRenewsTheCheckoutAndArchivesWithoutReleasing() {
         lane.checkouts.put(player, "b");
 
-        protocol.keep(snapshot(), bytes("state"), "manual");
+        protocol.keep(snapshot(), bytes("state"), SnapshotCause.MANUAL);
 
         assertEquals(1, lane.renewals);
         assertEquals(Optional.of("b"), lane.checkoutOwner(player));
         assertTrue(lane.snapshots.isEmpty(), "nothing is handed off while the player stays");
-        assertEquals("manual", archive.rows.getFirst().cause());
+        assertEquals(SnapshotCause.MANUAL, archive.rows.getFirst().cause());
     }
 
     @Test
@@ -184,7 +185,7 @@ class HandoffProtocolTest {
     }
 
     private PlayerSnapshot snapshot() {
-        return new PlayerSnapshot(PlayerSnapshot.FORMAT, player, "b", 1234L,
+        return new PlayerSnapshot(PlayerSnapshot.FORMAT, player, "Steve", "b", 1234L,
                 new byte[0], new byte[0], 0, 20.0, 20, 5f, 0, 0f, "SURVIVAL", List.of());
     }
 

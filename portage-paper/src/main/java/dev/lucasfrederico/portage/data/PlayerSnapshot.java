@@ -11,6 +11,7 @@ import java.util.UUID;
  *
  * @param format     the snapshot format version this instance follows
  * @param player     the player's id
+ * @param name       the player's name at the time, for staff-facing lookups
  * @param server     the server that produced the snapshot
  * @param takenAt    epoch milliseconds when the snapshot was taken
  * @param inventory  the main inventory, armor and off-hand as item bytes
@@ -24,7 +25,7 @@ import java.util.UUID;
  * @param gameMode   the game mode name
  * @param effects    the active potion effects
  */
-public record PlayerSnapshot(int format, UUID player, String server, long takenAt,
+public record PlayerSnapshot(int format, UUID player, String name, String server, long takenAt,
                              byte[] inventory, byte[] enderChest, int heldSlot,
                              double health, int food, float saturation,
                              int level, float exp, String gameMode,

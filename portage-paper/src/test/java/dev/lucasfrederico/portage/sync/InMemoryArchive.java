@@ -1,5 +1,7 @@
 package dev.lucasfrederico.portage.sync;
 
+import dev.lucasfrederico.portage.data.PlayerSnapshot;
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.store.SnapshotArchive;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -10,19 +12,21 @@ import java.util.UUID;
 /** An archive that keeps rows in a list and can be told to fail. */
 final class InMemoryArchive implements SnapshotArchive {
 
-    record Row(UUID player, String server, String cause, int format, long takenAt, byte[] payload) {
+    record Row(UUID player, String server, SnapshotCause cause, int format, long takenAt,
+               byte[] payload) {
     }
 
     final List<Row> rows = new ArrayList<>();
     boolean failing;
 
     @Override
-    public void save(UUID player, String server, String cause, int format, long takenAt,
-                     byte[] payload) throws SQLException {
+    public void save(PlayerSnapshot snapshot, SnapshotCause cause, byte[] payload)
+            throws SQLException {
         if (failing) {
             throw new SQLException("archive down");
         }
-        rows.add(new Row(player, server, cause, format, takenAt, payload));
+        rows.add(new Row(snapshot.player(), snapshot.server(), cause, snapshot.format(),
+                snapshot.takenAt(), payload));
     }
 
     @Override

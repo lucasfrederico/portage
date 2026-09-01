@@ -1,6 +1,7 @@
 package dev.lucasfrederico.portage.sync;
 
 import dev.lucasfrederico.portage.data.PlayerSnapshot;
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.store.CheckoutLane;
 import dev.lucasfrederico.portage.store.SnapshotArchive;
 import java.sql.SQLException;
@@ -129,7 +130,7 @@ public final class HandoffProtocol {
      * @param payload  the same state, encoded
      * @param cause    why the snapshot was taken, for the archive row
      */
-    public void handOff(PlayerSnapshot snapshot, byte[] payload, String cause) {
+    public void handOff(PlayerSnapshot snapshot, byte[] payload, SnapshotCause cause) {
         lane.putSnapshot(snapshot.player(), payload);
         lane.release(snapshot.player());
         archiveQuietly(snapshot, payload, cause);
@@ -157,7 +158,7 @@ public final class HandoffProtocol {
      * @param payload  the same state, encoded
      * @param cause    why the snapshot was taken, for the archive row
      */
-    public void keep(PlayerSnapshot snapshot, byte[] payload, String cause) {
+    public void keep(PlayerSnapshot snapshot, byte[] payload, SnapshotCause cause) {
         lane.renewCheckout(snapshot.player());
         archiveQuietly(snapshot, payload, cause);
     }
@@ -180,10 +181,9 @@ public final class HandoffProtocol {
         }
     }
 
-    private void archiveQuietly(PlayerSnapshot snapshot, byte[] payload, String cause) {
+    private void archiveQuietly(PlayerSnapshot snapshot, byte[] payload, SnapshotCause cause) {
         try {
-            archive.save(snapshot.player(), server, cause, snapshot.format(),
-                    snapshot.takenAt(), payload);
+            archive.save(snapshot, cause, payload);
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "could not store the snapshot of " + snapshot.player(), e);
         }

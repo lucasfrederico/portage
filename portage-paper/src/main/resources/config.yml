@@ -11,6 +11,11 @@ database:
   user: "root"
   password: ""
 
+archive:
+  # How many snapshots the database keeps per player; older rows are pruned
+  # on every save. 0 keeps everything.
+  keep-per-player: 20
+
 handoff:
   # How long a joining player waits for the previous server to hand off
   # before Portage falls back to the database. Milliseconds.

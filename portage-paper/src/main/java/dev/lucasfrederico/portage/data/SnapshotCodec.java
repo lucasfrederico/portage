@@ -32,6 +32,7 @@ public final class SnapshotCodec {
         var root = new JsonObject();
         root.addProperty("format", snapshot.format());
         root.addProperty("player", snapshot.player().toString());
+        root.addProperty("name", snapshot.name());
         root.addProperty("server", snapshot.server());
         root.addProperty("takenAt", snapshot.takenAt());
         root.addProperty("inventory", Base64.getEncoder().encodeToString(snapshot.inventory()));
@@ -85,6 +86,7 @@ public final class SnapshotCodec {
         }
         return new PlayerSnapshot(root.get("format").getAsInt(),
                 UUID.fromString(root.get("player").getAsString()),
+                root.get("name").getAsString(),
                 root.get("server").getAsString(), root.get("takenAt").getAsLong(),
                 Base64.getDecoder().decode(root.get("inventory").getAsString()),
                 Base64.getDecoder().decode(root.get("enderChest").getAsString()),

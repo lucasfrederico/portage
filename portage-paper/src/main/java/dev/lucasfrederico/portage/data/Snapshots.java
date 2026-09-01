@@ -33,7 +33,7 @@ public final class Snapshots {
                     effect.getDuration(), effect.getAmplifier(), effect.isAmbient(),
                     effect.hasParticles(), effect.hasIcon()));
         }
-        return new PlayerSnapshot(PlayerSnapshot.FORMAT, player.getUniqueId(), server,
+        return new PlayerSnapshot(PlayerSnapshot.FORMAT, player.getUniqueId(), player.getName(), server,
                 System.currentTimeMillis(),
                 ItemStack.serializeItemsAsBytes(player.getInventory().getContents()),
                 ItemStack.serializeItemsAsBytes(player.getEnderChest().getContents()),

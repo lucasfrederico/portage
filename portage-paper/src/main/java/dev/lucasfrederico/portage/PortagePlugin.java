@@ -1,5 +1,6 @@
 package dev.lucasfrederico.portage;
 
+import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.store.MysqlStore;
 import dev.lucasfrederico.portage.store.RedisStore;
 import dev.lucasfrederico.portage.sync.Handoff;
@@ -40,7 +41,8 @@ public final class PortagePlugin extends JavaPlugin {
             redis.ping();
             database = new MysqlStore(config.getString("database.jdbc-url"),
                     config.getString("database.user", "root"),
-                    config.getString("database.password", ""));
+                    config.getString("database.password", ""),
+                    config.getInt("archive.keep-per-player", 20));
         } catch (SQLException | RuntimeException e) {
             getLogger().log(Level.SEVERE, "Portage cannot start without Redis and the database", e);
             getServer().getPluginManager().disablePlugin(this);
@@ -64,7 +66,7 @@ public final class PortagePlugin extends JavaPlugin {
     public void onDisable() {
         if (handoff != null) {
             for (Player player : getServer().getOnlinePlayers()) {
-                handoff.onQuit(player, "stop");
+                handoff.onQuit(player, SnapshotCause.STOP);
             }
         }
         if (database != null) {
