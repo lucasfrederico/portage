@@ -1,0 +1,4 @@
+# a/, b/ and velocity/ are generated from seed/ by fetch.sh and filled by the servers.
+/a/
+/b/
+/velocity/

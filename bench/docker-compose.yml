@@ -1,0 +1,53 @@
+name: portage-bench
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: test
+      MARIADB_DATABASE: portage
+    ports: ["3306:3306"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  velocity:
+    image: eclipse-temurin:25-jre
+    working_dir: /velocity
+    command: ["java", "-Xmx256M", "-jar", "velocity.jar"]
+    volumes: ["./velocity:/velocity"]
+    ports: ["25565:25565"]
+    stdin_open: true
+    tty: true
+    depends_on: [paper-a, paper-b]
+
+  # Backend "a": Paper.
+  paper-a:
+    image: eclipse-temurin:25-jre
+    working_dir: /server
+    command: ["java", "-Xmx1G", "-jar", "paper.jar", "nogui"]
+    volumes: ["./a:/server"]
+    ports: ["25575:25575"]
+    stdin_open: true
+    tty: true
+    depends_on:
+      redis: { condition: service_started }
+      mariadb: { condition: service_healthy }
+
+  # Backend "b": Folia, so a handoff crosses two different server threading models.
+  paper-b:
+    image: eclipse-temurin:25-jre
+    working_dir: /server
+    command: ["java", "-Xmx1G", "-jar", "folia.jar", "nogui"]
+    volumes: ["./b:/server"]
+    ports: ["25576:25575"]
+    stdin_open: true
+    tty: true
+    depends_on:
+      redis: { condition: service_started }
+      mariadb: { condition: service_healthy }
