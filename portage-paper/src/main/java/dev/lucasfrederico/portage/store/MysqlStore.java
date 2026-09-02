@@ -114,6 +114,24 @@ public final class MysqlStore implements SnapshotArchive, AutoCloseable {
     }
 
     @Override
+    public Optional<byte[]> payload(UUID player, long snapshotId) throws SQLException {
+        try (var connection = pool.getConnection()) {
+            var playerId = knownPlayerId(connection, player);
+            if (playerId.isEmpty()) {
+                return Optional.empty();
+            }
+            try (var statement = connection.prepareStatement(
+                    "SELECT payload FROM portage_snapshots WHERE player_id = ? AND id = ?")) {
+                statement.setInt(1, playerId.get());
+                statement.setLong(2, snapshotId);
+                try (var result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(result.getBytes(1)) : Optional.empty();
+                }
+            }
+        }
+    }
+
+    @Override
     public Optional<byte[]> latest(UUID player) throws SQLException {
         try (var connection = pool.getConnection()) {
             var playerId = knownPlayerId(connection, player);

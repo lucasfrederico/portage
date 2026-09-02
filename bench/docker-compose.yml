@@ -16,6 +16,20 @@ services:
       timeout: 3s
       retries: 20
 
+  console:
+    image: eclipse-temurin:25-jre
+    command: ["/console/bin/portage-console"]
+    volumes: ["../portage-console/build/install/portage-console:/console:ro"]
+    environment:
+      REDIS_HOST: redis
+      DB_URL: jdbc:mariadb://mariadb:3306/portage
+      DB_USER: root
+      DB_PASS: test
+    ports: ["8090:8090"]
+    depends_on:
+      redis: { condition: service_started }
+      mariadb: { condition: service_healthy }
+
   velocity:
     image: eclipse-temurin:25-jre
     working_dir: /velocity

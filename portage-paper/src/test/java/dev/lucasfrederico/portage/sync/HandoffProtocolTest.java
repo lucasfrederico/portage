@@ -10,6 +10,7 @@ import dev.lucasfrederico.portage.data.PlayerSnapshot;
 import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.sync.HandoffProtocol.Acquired;
 import dev.lucasfrederico.portage.sync.HandoffProtocol.Retry;
+import dev.lucasfrederico.portage.sync.HandoffProtocol.Source;
 import dev.lucasfrederico.portage.sync.HandoffProtocol.TakeOver;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -46,6 +47,7 @@ class HandoffProtocolTest {
 
         var acquired = assertInstanceOf(Acquired.class, step);
         assertArrayEquals(FROM_LANE, acquired.payload().orElseThrow());
+        assertEquals(Source.LANE, acquired.source());
         assertEquals(Optional.of("b"), lane.checkoutOwner(player));
         assertTrue(lane.snapshots.isEmpty(), "the lane copy is consumed once claimed");
     }
@@ -57,6 +59,7 @@ class HandoffProtocolTest {
         var acquired = assertInstanceOf(Acquired.class, protocol.tryAcquire(player, 0, 0));
 
         assertArrayEquals(FROM_ARCHIVE, acquired.payload().orElseThrow());
+        assertEquals(Source.ARCHIVE, acquired.source());
     }
 
     @Test
@@ -64,6 +67,7 @@ class HandoffProtocolTest {
         var acquired = assertInstanceOf(Acquired.class, protocol.tryAcquire(player, 0, 0));
 
         assertTrue(acquired.payload().isEmpty());
+        assertEquals(Source.NONE, acquired.source());
     }
 
     @Test

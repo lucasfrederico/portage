@@ -23,6 +23,16 @@ public interface SnapshotArchive {
     void save(PlayerSnapshot snapshot, SnapshotCause cause, byte[] payload) throws SQLException;
 
     /**
+     * One specific archived snapshot of a player.
+     *
+     * @param player     the player the row must belong to
+     * @param snapshotId the row id
+     * @return the encoded snapshot, if that row exists for that player
+     * @throws SQLException when the read fails
+     */
+    Optional<byte[]> payload(UUID player, long snapshotId) throws SQLException;
+
+    /**
      * The most recent snapshot of a player.
      *
      * @param player the player

@@ -1,10 +1,14 @@
 package dev.lucasfrederico.portage.store;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPubSub;
 import redis.clients.jedis.params.ScanParams;
 import redis.clients.jedis.params.SetParams;
 
@@ -18,8 +22,12 @@ public final class RedisStore implements CheckoutLane, AutoCloseable {
 
     private static final String CHECKOUT = "portage:checkout:";
     private static final String DATA = "portage:data:";
+    private static final String SERVER = "portage:server:";
+    private static final long HEARTBEAT_TTL_MS = 15_000;
 
     private final JedisPool pool;
+    private final List<Thread> subscribers = new ArrayList<>();
+    private volatile boolean open = true;
     private final Duration checkoutTtl;
     private final Duration dataTtl;
 
@@ -150,6 +158,67 @@ public final class RedisStore implements CheckoutLane, AutoCloseable {
     }
 
     /**
+     * Publishes a message for the other servers and the console.
+     *
+     * @param channel the channel
+     * @param message the message, JSON by convention
+     */
+    public void publish(String channel, String message) {
+        try (var jedis = pool.getResource()) {
+            jedis.publish(channel, message);
+        }
+    }
+
+    /**
+     * Listens to a channel on a daemon thread, reconnecting until the store
+     * closes.
+     *
+     * @param channel the channel
+     * @param handler called with every message, on the subscriber thread
+     */
+    public void subscribe(String channel, Consumer<String> handler) {
+        var listener = new JedisPubSub() {
+            @Override
+            public void onMessage(String onChannel, String message) {
+                handler.accept(message);
+            }
+        };
+        var thread = new Thread(() -> {
+            while (open) {
+                try (var jedis = pool.getResource()) {
+                    jedis.subscribe(listener, channel);
+                } catch (RuntimeException e) {
+                    sleepBeforeRetry();
+                }
+            }
+        }, "portage-subscribe-" + channel);
+        thread.setDaemon(true);
+        thread.start();
+        subscribers.add(thread);
+    }
+
+    private static void sleepBeforeRetry() {
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Refreshes this server's liveness key; it expires when the server goes
+     * silent.
+     *
+     * @param server this server's id
+     * @param json   the heartbeat body
+     */
+    public void heartbeat(String server, String json) {
+        try (var jedis = pool.getResource()) {
+            jedis.set(SERVER + server, json, SetParams.setParams().px(HEARTBEAT_TTL_MS));
+        }
+    }
+
+    /**
      * Checks the connection works.
      *
      * @return the PING reply
@@ -162,6 +231,8 @@ public final class RedisStore implements CheckoutLane, AutoCloseable {
 
     @Override
     public void close() {
+        open = false;
+        subscribers.forEach(Thread::interrupt);
         pool.close();
     }
 

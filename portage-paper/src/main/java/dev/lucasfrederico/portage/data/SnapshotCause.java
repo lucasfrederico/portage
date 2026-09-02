@@ -11,7 +11,9 @@ public enum SnapshotCause {
     /** This server stopped with the player online. */
     STOP(2),
     /** Staff or a scheduled task asked for it. */
-    MANUAL(3);
+    MANUAL(3),
+    /** An archived snapshot was restored over the player's state. */
+    ROLLBACK(4);
 
     private final int code;
 

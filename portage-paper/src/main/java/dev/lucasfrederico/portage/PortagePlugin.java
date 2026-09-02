@@ -3,12 +3,17 @@ package dev.lucasfrederico.portage;
 import dev.lucasfrederico.portage.data.SnapshotCause;
 import dev.lucasfrederico.portage.store.MysqlStore;
 import dev.lucasfrederico.portage.store.RedisStore;
+import dev.lucasfrederico.portage.sync.Events;
 import dev.lucasfrederico.portage.sync.Handoff;
 import dev.lucasfrederico.portage.sync.HandoffListener;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+
+import com.google.gson.JsonParser;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -49,7 +54,8 @@ public final class PortagePlugin extends JavaPlugin {
             return;
         }
 
-        handoff = new Handoff(this, server, redis, database,
+        var events = new Events(this, redis, server);
+        handoff = new Handoff(this, server, redis, database, events,
                 config.getLong("handoff.wait-ms", 3000), config.getLong("handoff.poll-ms", 50));
         var recovered = handoff.recoverStaleCheckouts();
         if (recovered > 0) {
@@ -59,7 +65,28 @@ public final class PortagePlugin extends JavaPlugin {
         getServer().getMessenger().registerOutgoingPluginChannel(this, PortageCommand.PROXY_CHANNEL);
         Objects.requireNonNull(getCommand("portage"))
                 .setExecutor(new PortageCommand(this, handoff));
+        startHeartbeat(server);
+        listenForRollbacks();
         getLogger().info(() -> "Portage ready as \"" + server + "\"");
+    }
+
+    private void startHeartbeat(String server) {
+        getServer().getAsyncScheduler().runAtFixedRate(this, task -> redis.heartbeat(server,
+                "{\"players\":" + handoff.onlineCount()
+                        + ",\"at\":" + System.currentTimeMillis() + "}"),
+                1, 5, TimeUnit.SECONDS);
+    }
+
+    private void listenForRollbacks() {
+        redis.subscribe("portage:apply", message -> {
+            try {
+                var command = JsonParser.parseString(message).getAsJsonObject();
+                handoff.applyArchived(UUID.fromString(command.get("player").getAsString()),
+                        command.get("snapshotId").getAsLong());
+            } catch (RuntimeException e) {
+                getLogger().warning(() -> "ignoring a malformed apply command: " + message);
+            }
+        });
     }
 
     @Override

@@ -30,6 +30,18 @@ final class InMemoryArchive implements SnapshotArchive {
     }
 
     @Override
+    public Optional<byte[]> payload(UUID player, long snapshotId) throws SQLException {
+        if (failing) {
+            throw new SQLException("archive down");
+        }
+        var index = (int) snapshotId - 1;
+        if (index < 0 || index >= rows.size() || !rows.get(index).player().equals(player)) {
+            return Optional.empty();
+        }
+        return Optional.of(rows.get(index).payload());
+    }
+
+    @Override
     public Optional<byte[]> latest(UUID player) throws SQLException {
         if (failing) {
             throw new SQLException("archive down");

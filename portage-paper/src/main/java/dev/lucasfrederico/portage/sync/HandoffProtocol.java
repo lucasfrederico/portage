@@ -26,12 +26,23 @@ public final class HandoffProtocol {
     public sealed interface JoinStep permits Acquired, Retry, TakeOver {
     }
 
+    /** Where an acquired snapshot came from. */
+    public enum Source {
+        /** Handed off through Redis a moment ago. */
+        LANE,
+        /** Read back from the database. */
+        ARCHIVE,
+        /** Nowhere; the player is new. */
+        NONE
+    }
+
     /**
      * This server owns the player now.
      *
      * @param payload the freshest snapshot, empty for a brand new player
+     * @param source  where the payload came from
      */
-    public record Acquired(Optional<byte[]> payload) implements JoinStep {
+    public record Acquired(Optional<byte[]> payload, Source source) implements JoinStep {
     }
 
     /** Another server still owns the player and the wait is not over. */
@@ -111,7 +122,13 @@ public final class HandoffProtocol {
      */
     public JoinStep tryAcquire(UUID player, long startedAt, long now) {
         if (lane.tryCheckout(player, server)) {
-            return new Acquired(lane.takeSnapshot(player).or(() -> latestArchived(player)));
+            var fromLane = lane.takeSnapshot(player);
+            if (fromLane.isPresent()) {
+                return new Acquired(fromLane, Source.LANE);
+            }
+            var fromArchive = latestArchived(player);
+            return new Acquired(fromArchive,
+                    fromArchive.isPresent() ? Source.ARCHIVE : Source.NONE);
         }
         if (now - startedAt < waitMs) {
             return new Retry();

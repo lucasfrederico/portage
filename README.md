@@ -1,10 +1,8 @@
 # Portage
 
-Carries a player's state between the servers of a Minecraft network.
+Portage carries a player's state between the servers of a Minecraft network. When someone leaves server `a` and lands on server `b`, it makes sure `b` applies what `a` had a moment earlier: inventory, ender chest, experience, health, hunger, potion effects and game mode. Redis is the fast lane between the two servers, MariaDB keeps the history, and a checkout key guarantees that only one server owns a player at any given time.
 
-When someone leaves server `a` and lands on server `b`, Portage makes sure `b` applies what `a` had a moment earlier: inventory, ender chest, experience, health, hunger, potion effects and game mode. Redis is the fast lane between the two servers, MariaDB keeps the history, and a checkout key guarantees that only one server owns a player at any given time.
-
-Built for Paper and Folia 26.2. The bench in this repository runs a Velocity proxy in front of one Paper backend and one Folia backend, all in Docker, and a round trip `a → b → a` with items, XP, effects and game mode changed on each leg comes back intact.
+It targets Paper and Folia 26.2. The bench in this repository runs a Velocity proxy in front of one Paper backend and one Folia backend, all in Docker, and a round trip `a → b → a` with items, XP, effects and game mode changed on each leg comes back intact.
 
 ## What travels with the player
 
@@ -122,9 +120,19 @@ Commands, permission `portage.admin`:
 
 Both exist so a handoff can be exercised from a console alone.
 
+## Console
+
+`portage-console` is a web panel over the same Redis and database the servers use; nothing else to install, no agent on the backends. The Live screen shows every handoff as it happens, with the two numbers worth watching per join: how long until this server owned the player, and how long until the snapshot was applied. Open checkouts sit above the stream.
+
+Players is search plus history. Look a player up by name or UUID and you get their snapshot timeline: when, on which server, why (quit, stop, manual, rollback), level, health, game mode, payload size. Every row has a Restore button. When the player is online the restore goes over pub/sub to the server holding their checkout and lands in-game on the spot; when they are offline the row is re-appended as the newest snapshot and applies on their next join.
+
+Servers lists each backend from its 5-second heartbeat in Redis, with player count and how many checkouts it holds; a server that goes silent drops off after 15 seconds.
+
+The plugin publishes one JSON message per handoff step on the `portage:events` channel and listens on `portage:apply` for restore requests; the console is just another subscriber. Run it with `./gradlew :portage-console:installDist` and `portage-console/build/install/portage-console/bin/portage-console`, configured by environment: `CONSOLE_PORT`, `REDIS_HOST`, `REDIS_PORT`, `DB_URL`, `DB_USER`, `DB_PASS`.
+
 ## Bench
 
-`bench/` is the whole network in one `docker compose`: Redis, MariaDB, Velocity on `:25565`, Paper as `a` and Folia as `b`.
+`bench/` is the whole network in one `docker compose`: Redis, MariaDB, Velocity on `:25565`, Paper as `a`, Folia as `b`, and the console on [localhost:8090](http://localhost:8090).
 
 ```sh
 ./gradlew build
@@ -159,11 +167,13 @@ Java 25 toolchain, Gradle wrapper included. Tests cover the handoff rules agains
 portage-paper/src/main/java/dev/lucasfrederico/portage/
   data/    PlayerSnapshot, SnapshotCodec, Snapshots (capture/apply on a live player)
   store/   CheckoutLane + RedisStore, SnapshotArchive + MysqlStore
-  sync/    HandoffProtocol (the rules), Handoff (scheduling), HandoffListener (the freeze)
+  sync/    HandoffProtocol (the rules), Handoff (scheduling), HandoffListener (the
+           freeze), Events (the pub/sub feed)
   PortagePlugin, PortageCommand
+portage-console/  the web panel: Console (routes), Bus (Redis), Db (archive), Pages (HTML)
 bench/     docker compose network, seed configs, fetch script, rcon client
 ```
 
 ## Status
 
-`0.1.0`. What works is described above; what is next: a periodic autosave into the archive, a `/portage rollback` that restores any archived row, and metrics on handoff latency.
+`0.1.0`. What works is described above. Next up is a bot harness that drives hundreds of handoffs through the bench for real load numbers, then short recordings of the console while a server dies mid-handoff and its neighbor takes over.
